@@ -1,5 +1,3 @@
-"""Simple API server for joke generation."""
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
@@ -15,17 +13,14 @@ class JokeRequest(BaseModel):
 
 @app.get("/")
 def read_root():
-    """Root endpoint."""
     return {"message": "Joke Generation API is running!", "endpoints": ["/health", "/generate-joke"]}
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint - important for AWS."""
     return {"status": "healthy"}
 
 @app.post("/generate-joke")
 def generate_joke_endpoint(request: JokeRequest):
-    """Generate a joke and explanation - main endpoint."""
     try:
         print(f"API request for topic: {request.topic}")
         result = generate_joke_with_explanation(request.topic, request.thread_id)
