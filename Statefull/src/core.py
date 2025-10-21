@@ -13,11 +13,17 @@ def generate_joke(state):
         response = llm.invoke(prompt).content
         print("Joke generated successfully")
         
-        return {'joke': response}
+        return {
+            'joke': response,
+            'status': 'joke_generated'
+        }
         
     except Exception as e:
         print(f"Error generating joke: {str(e)}")
-        return {'joke': f"Sorry, I couldn't generate a joke about {topic} right now."}
+        return {
+            'joke': f"Sorry, I couldn't generate a joke about {topic} right now.",
+            'status': 'error'
+        }
 
 
 def generate_explanation(state):
@@ -31,8 +37,14 @@ def generate_explanation(state):
         response = llm.invoke(prompt).content
         print("Explanation generated successfully")
         
-        return {'explanation': response}
+        return {
+            'explanation': response,
+            'status': 'completed'
+        }
         
     except Exception as e:
         print(f"Error generating explanation: {str(e)}")
-        return {'explanation': "Sorry, I couldn't generate an explanation for this joke."}
+        return {
+            'explanation': "Sorry, I couldn't generate an explanation for this joke.",
+            'status': 'error'
+        }

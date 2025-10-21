@@ -1,43 +1,121 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
-from src.graph import generate_joke_with_explanation
+from src.graph import start_joke_generation, continue_with_explanation, get_thread_status
 
-# Create simple FastAPI app
-app = FastAPI(title="Joke Generation API", version="1.0.0")
+# Create stateful FastAPI app
+app = FastAPI(
+    title="Stateful Joke Generation API", 
+    version="2.0.0",
+    description="API with persistent state management for joke generation"
+)
 
-# Simple request model
-class JokeRequest(BaseModel):
+# Request models
+class StartRequest(BaseModel):
     topic: str
-    thread_id: str = "default"
+    thread_id: str
+
+class ContinueRequest(BaseModel):
+    thread_id: str
+
+class StatusRequest(BaseModel):
+    thread_id: str
 
 @app.get("/")
 def read_root():
-    return {"message": "Joke Generation API is running!", "endpoints": ["/health", "/generate-joke"]}
+    return {
+        "message": "Stateful Joke Generation API is running!",
+        "version": "2.0.0",
+        "endpoints": [
+            "/health",
+            "/start - Start joke generation",
+            "/continue - Generate explanation",
+            "/status - Check thread status"
+        ]
+    }
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "persistence": "SQLite"}
 
-@app.post("/generate-joke")
-def generate_joke_endpoint(request: JokeRequest):
+@app.post("/start")
+def start_endpoint(request: StartRequest):
+    """
+    Start joke generation for a topic.
+    Creates or restarts a workflow for the given thread_id.
+    Returns the joke and waits for /continue to generate explanation.
+    """
     try:
-        print(f"API request for topic: {request.topic}")
-        result = generate_joke_with_explanation(request.topic, request.thread_id)
+        print(f"API /start - topic: {request.topic}, thread: {request.thread_id}")
+        result = start_joke_generation(request.topic, request.thread_id)
         
         return {
-            "topic": request.topic,
-            "joke": result.get("joke", "No joke generated"),
-            "explanation": result.get("explanation", "No explanation generated"),
-            "thread_id": request.thread_id
+            "success": True,
+            "thread_id": result['thread_id'],
+            "topic": result['topic'],
+            "joke": result['joke'],
+            "status": result['status'],
+            "message": "Joke generated. Call /continue to get explanation."
         }
     except Exception as e:
-        print(f"API error: {str(e)}")
+        print(f"API error in /start: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/continue")
+def continue_endpoint(request: ContinueRequest):
+    """
+    Continue workflow to generate explanation for an existing joke.
+    Requires a thread_id that has already started with /start.
+    """
+    try:
+        print(f"API /continue - thread: {request.thread_id}")
+        result = continue_with_explanation(request.thread_id)
+        
+        return {
+            "success": True,
+            "thread_id": result['thread_id'],
+            "topic": result['topic'],
+            "joke": result['joke'],
+            "explanation": result['explanation'],
+            "status": result['status'],
+            "message": "Workflow completed."
+        }
+    except ValueError as e:
+        # Thread not found or invalid state
+        print(f"API validation error in /continue: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        print(f"API error in /continue: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+@app.post("/status")
+def status_endpoint(request: StatusRequest):
+    """
+    Check the current status of a thread.
+    Returns information about what stage the workflow is in.
+    """
+    try:
+        print(f"API /status - thread: {request.thread_id}")
+        result = get_thread_status(request.thread_id)
+        
+        if not result.get('exists'):
+            raise HTTPException(status_code=404, detail=result.get('message'))
+        
+        return {
+            "success": True,
+            **result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"API error in /status: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 # if __name__ == "__main__":
-#     print("Starting Joke Generation API server on port 8000...")
+#     print("Starting Stateful Joke Generation API server on port 8000...")
 #     print("Endpoints available:")
 #     print("  GET  /health - Health check")
-#     print("  POST /generate-joke - Generate joke")
+#     print("  POST /start - Start joke generation")
+#     print("  POST /continue - Generate explanation")
+#     print("  POST /status - Check thread status")
 #     uvicorn.run(app, host="0.0.0.0", port=8000)
