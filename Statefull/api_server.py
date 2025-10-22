@@ -25,7 +25,7 @@ class StatusRequest(BaseModel):
 def read_root():
     return {
         "message": "Stateful Joke Generation API is running!",
-        "version": "2.0.0",
+        "version": "2.0.0(Statefull)",
         "endpoints": [
             "/health",
             "/start - Start joke generation",
@@ -40,11 +40,6 @@ def health_check():
 
 @app.post("/start")
 def start_endpoint(request: StartRequest):
-    """
-    Start joke generation for a topic.
-    Creates or restarts a workflow for the given thread_id.
-    Returns the joke and waits for /continue to generate explanation.
-    """
     try:
         print(f"API /start - topic: {request.topic}, thread: {request.thread_id}")
         result = start_joke_generation(request.topic, request.thread_id)
@@ -63,10 +58,6 @@ def start_endpoint(request: StartRequest):
 
 @app.post("/continue")
 def continue_endpoint(request: ContinueRequest):
-    """
-    Continue workflow to generate explanation for an existing joke.
-    Requires a thread_id that has already started with /start.
-    """
     try:
         print(f"API /continue - thread: {request.thread_id}")
         result = continue_with_explanation(request.thread_id)
@@ -81,8 +72,7 @@ def continue_endpoint(request: ContinueRequest):
             "message": "Workflow completed."
         }
     except ValueError as e:
-        # Thread not found or invalid state
-        print(f"API validation error in /continue: {str(e)}")
+        print(f"API validation error in /continue (Invalid thread id): {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         print(f"API error in /continue: {str(e)}")
@@ -90,10 +80,6 @@ def continue_endpoint(request: ContinueRequest):
 
 @app.post("/status")
 def status_endpoint(request: StatusRequest):
-    """
-    Check the current status of a thread.
-    Returns information about what stage the workflow is in.
-    """
     try:
         print(f"API /status - thread: {request.thread_id}")
         result = get_thread_status(request.thread_id)

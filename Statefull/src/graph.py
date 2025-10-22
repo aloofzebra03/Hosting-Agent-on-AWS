@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from .models import JokeState
 from .core import generate_joke, generate_explanation
-import os
+import sqlite3
 
 # Database file for persistent storage
 DB_PATH = "checkpoints.db"
@@ -25,11 +25,13 @@ def create_workflow():
     graph.add_edge('generate_joke', 'generate_explanation')
     graph.add_edge('generate_explanation', END)
     
-    # Use SQLite checkpointer for persistent storage
-    checkpointer = SqliteSaver.from_conn_string(DB_PATH)
+    # Create SQLite connection and checkpointer
+    # SqliteSaver needs to be created with a connection
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
     
+    print("SQLite checkpointer initialized",checkpointer)
     # Compile the workflow with interrupt AFTER joke generation
-    # This means the workflow will pause after generate_joke completes
     workflow = graph.compile(
         checkpointer=checkpointer,
         interrupt_after=['generate_joke']
@@ -37,21 +39,10 @@ def create_workflow():
     print("Workflow setup completed with SQLite persistence")
     
     return workflow
-
 # Create global workflow instance
 workflow = create_workflow()
 
 def start_joke_generation(topic: str, thread_id: str):
-    """
-    Start joke generation workflow. Returns after joke is generated.
-    
-    Args:
-        topic: The topic for the joke
-        thread_id: Unique thread identifier for this conversation
-        
-    Returns:
-        dict with joke and status
-    """
     try:
         config = {"configurable": {"thread_id": thread_id}}
         print(f"Starting joke generation for topic: {topic}, thread: {thread_id}")
@@ -64,7 +55,6 @@ def start_joke_generation(topic: str, thread_id: str):
             'status': 'started'
         }
         
-        # Invoke workflow - it will stop after generate_joke due to interrupt
         result = workflow.invoke(initial_state, config=config)
         print(f"Joke generation completed for thread: {thread_id}")
         
@@ -80,15 +70,6 @@ def start_joke_generation(topic: str, thread_id: str):
 
 
 def continue_with_explanation(thread_id: str):
-    """
-    Continue workflow to generate explanation for an existing joke.
-    
-    Args:
-        thread_id: The thread identifier to continue
-        
-    Returns:
-        dict with explanation and status
-    """
     try:
         config = {"configurable": {"thread_id": thread_id}}
         print(f"Continuing workflow for thread: {thread_id}")
@@ -120,15 +101,6 @@ def continue_with_explanation(thread_id: str):
 
 
 def get_thread_status(thread_id: str):
-    """
-    Get current status of a thread.
-    
-    Args:
-        thread_id: The thread identifier to check
-        
-    Returns:
-        dict with current state information
-    """
     try:
         config = {"configurable": {"thread_id": thread_id}}
         state = workflow.get_state(config)
