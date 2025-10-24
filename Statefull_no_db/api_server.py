@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from typing import Optional
+from typing import Annotated
 import uvicorn
 from src.graph import start_joke_generation, continue_workflow
 
@@ -23,6 +24,13 @@ class ContinueRequest(BaseModel):
     alternative: Optional[str] = None
     next_node: str
     status: str
+
+class StateResponse(BaseModel):
+    success: Annotated[bool,Field(..., description="Indicates if the request was successful")]
+    state: Annotated[ContinueRequest,Field(..., description="Current state of the workflow")]
+    completed: Annotated[bool,Field(..., description="Indicates if the workflow is completed")]
+    message: Annotated[str,Field(..., description="Informational message about the workflow")]
+    
 
 @app.get("/")
 def read_root():
@@ -51,7 +59,7 @@ def health_check():
         "mode": "stateless"
     }
 
-@app.post("/start")
+@app.post("/start",response_model = StateResponse,response_description="State after starting workflow")
 def start_endpoint(request: StartRequest):
     try:
         print(f"API /start - topic: {request.topic}")
@@ -68,13 +76,14 @@ def start_endpoint(request: StartRequest):
                 "next_node": result['next_node'],
                 "status": result['status']
             },
+            "completed": False,
             "message": f"Node executed. Next node: {result['next_node']}. Send this state to /continue."
         }
     except Exception as e:
         print(f"API error in /start: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-@app.post("/continue")
+@app.post("/continue",response_model= StateResponse,response_description="State after continuing workflow")
 def continue_endpoint(request: ContinueRequest):
     try:
         # Convert request to state dict

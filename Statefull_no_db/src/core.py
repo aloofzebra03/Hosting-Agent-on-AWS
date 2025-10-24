@@ -32,7 +32,6 @@ def generate_joke(state):
 
 
 def generate_explanation(state):
-    """Generate an explanation for the joke."""
     try:
         llm = get_llm()
         joke = state.get("joke", "")
