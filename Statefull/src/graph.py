@@ -6,14 +6,14 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from .models import JokeState
 from .core import generate_joke, generate_explanation
 # import sqlite3
-import psycopg2
+from psycopg_pool import ConnectionPool
 import os
 
 # Database file for persistent storage
 DB_PATH = "checkpoints.db"
 
 def create_workflow():
-    """Create and return the stateful joke workflow with SQLite persistence."""
+    """Create and return the stateful joke workflow with PostgreSQL persistence."""
     print("Setting up stateful joke generation workflow")
     
     # Create the state graph
@@ -36,15 +36,25 @@ def create_workflow():
     # print("SQLite checkpointer initialized",checkpointer)
     # Compile the workflow with interrupt AFTER joke generation
 
-    conn = psycopg2.connect(os.getenv('POSTGRES_DATABASE_URL'))
-    checkpointer = PostgresSaver(conn)
+    # PostgresSaver requires psycopg3 connection pool
+    connection_kwargs = {
+        "autocommit": True,
+        "prepare_threshold": 0,
+    }
+    pool = ConnectionPool(
+        conninfo=os.getenv('POSTGRES_DATABASE_URL'),
+        max_size=20,
+        kwargs=connection_kwargs,
+    )
+    checkpointer = PostgresSaver(pool)
+    checkpointer.setup()  # Create tables if they don't exist
     print("Postgres checkpointer initialized", checkpointer)
 
     workflow = graph.compile(
         checkpointer=checkpointer,
         interrupt_after=['generate_joke']
     )
-    print("Workflow setup completed with SQLite persistence")
+    print("Workflow setup completed with PostgreSQL persistence")
     
     return workflow
 # Create global workflow instance
