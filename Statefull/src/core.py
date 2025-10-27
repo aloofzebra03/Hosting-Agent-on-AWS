@@ -1,9 +1,6 @@
-"""Simple joke generation functions."""
-
 from .config import get_llm
 
 def generate_joke(state):
-    """Generate a joke based on the topic."""
     try:
         llm = get_llm()
         topic = state.get("topic", "general")
