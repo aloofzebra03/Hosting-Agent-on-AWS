@@ -1,5 +1,3 @@
-"""Stateful workflow for joke generation with persistence."""
-
 from langgraph.graph import StateGraph, START, END
 # from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -13,7 +11,6 @@ import os
 DB_PATH = "checkpoints.db"
 
 def create_workflow():
-    """Create and return the stateful joke workflow with PostgreSQL persistence."""
     print("Setting up stateful joke generation workflow")
     
     # Create the state graph
