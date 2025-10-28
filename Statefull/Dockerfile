@@ -8,9 +8,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ---- System deps (minimal, but enough for most Python wheels) ----
+# ---- System deps (PostgreSQL client libraries + build tools) ----
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Copy and normalize requirements first (best for layer caching) ----

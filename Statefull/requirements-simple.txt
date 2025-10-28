@@ -24,11 +24,15 @@ langgraph
 langgraph-api
 langgraph-checkpoint
 langgraph-checkpoint-sqlite
+langgraph.checkpoint.postgres
+langgraph[postgres]
 langgraph-cli
 langgraph-prebuilt
 langgraph-runtime-inmem
 langgraph-sdk
 langsmith
+psycopg[binary]>=3.2
+psycopg-pool>=3.2
 uvicorn
 uvicorn[standard]
 fastapi
