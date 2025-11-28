@@ -46,7 +46,7 @@ def create_workflow():
     checkpointer = PostgresSaver(pool)
     checkpointer.setup()  # Create tables if they don't exist
     print("Postgres checkpointer initialized", checkpointer)
-
+    
     workflow = graph.compile(
         checkpointer=checkpointer,
         interrupt_after=['generate_joke']
