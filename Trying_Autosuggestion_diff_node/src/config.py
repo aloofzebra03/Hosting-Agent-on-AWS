@@ -9,7 +9,7 @@ load_dotenv()
 
 # Simple configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.0-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemma-3-27b-it")
 
 def get_llm():
     """Get the language model."""

@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
-from src.graph import start_joke_generation, continue_with_explanation, get_thread_status
+from src.graph import start_joke_generation, continue_with_explanation, get_thread_status, handle_user_action
 
 # Create stateful FastAPI app
 app = FastAPI(
-    title="Stateful Joke Generation API", 
-    version="2.0.0",
-    description="API with persistent state management for joke generation"
+    title="Stateful Joke Generation API with Autosuggestions", 
+    version="3.0.0",
+    description="API with persistent state management, interrupts, and smart autosuggestions"
 )
 
 # Request models
@@ -21,22 +21,27 @@ class ContinueRequest(BaseModel):
 class StatusRequest(BaseModel):
     thread_id: str
 
+class ActionRequest(BaseModel):
+    thread_id: str
+    action: str  # The autosuggestion action ID selected by user
+
 @app.get("/")
 def read_root():
     return {
-        "message": "Stateful Joke Generation API is running!",
-        "version": "2.0.0(Statefull)",
+        "message": "Stateful Joke Generation API with Autosuggestions is running!",
+        "version": "3.0.0",
         "endpoints": [
             "/health",
             "/start - Start joke generation",
-            "/continue - Generate explanation",
+            "/continue - Generate explanation and autosuggestions",
+            "/action - Handle user's selected autosuggestion",
             "/status - Check thread status"
         ]
     }
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "persistence": "SQLite"}
+    return {"status": "healthy", "persistence": "InMemory", "features": ["interrupts", "autosuggestions"]}
 
 @app.post("/start")
 def start_endpoint(request: StartRequest):
@@ -68,14 +73,62 @@ def continue_endpoint(request: ContinueRequest):
             "topic": result['topic'],
             "joke": result['joke'],
             "explanation": result['explanation'],
+            "autosuggestions": result.get('autosuggestions', []),
             "status": result['status'],
-            "message": "Workflow completed."
+            "message": "Explanation and autosuggestions generated. Use /action to select an autosuggestion."
         }
     except ValueError as e:
         print(f"API validation error in /continue (Invalid thread id): {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         print(f"API error in /continue: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@app.post("/action")
+def action_endpoint(request: ActionRequest):
+    """
+    Handle user's selected autosuggestion action.
+    
+    Valid actions:
+    - another_joke: Generate a new joke on the same topic
+    - simpler_explanation: Simplify the explanation
+    - make_funnier: Enhance the joke
+    - similar_joke: Generate a similar style joke
+    - new_topic: Request a new topic (returns completed status)
+    """
+    try:
+        print(f"API /action - thread: {request.thread_id}, action: {request.action}")
+        result = handle_user_action(request.thread_id, request.action)
+        
+        response = {
+            "success": True,
+            "thread_id": result['thread_id'],
+            "topic": result['topic'],
+            "joke": result['joke'],
+            "explanation": result.get('explanation'),
+            "autosuggestions": result.get('autosuggestions', []),
+            "status": result['status'],
+            "action_performed": result['action_performed']
+        }
+        
+        # Add appropriate message based on status
+        if result['status'] in ['joke_regenerated', 'joke_enhanced', 'similar_joke_generated']:
+            response["message"] = "New joke generated! Call /continue to get explanation and new suggestions."
+        elif result['status'] == 'explanation_simplified':
+            response["message"] = "Explanation simplified! New autosuggestions available."
+        elif result['status'] == 'new_topic_requested':
+            response["message"] = "Session completed. Call /start with a new topic."
+        else:
+            response["message"] = "Action completed."
+        
+        return response
+        
+    except ValueError as e:
+        print(f"API validation error in /action: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        print(f"API error in /action: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.post("/status")
