@@ -51,11 +51,11 @@ def create_workflow():
     )
     
     # Create in-memory checkpointer
-    # checkpointer = InMemorySaver()
+    checkpointer = InMemorySaver()
     print("InMemorySaver checkpointer initialized")
     
     workflow = graph.compile(
-        # checkpointer=checkpointer,
+        checkpointer=checkpointer,
         interrupt_after=['generate_joke', 'generate_autosuggestions', 'handle_autosuggestion']  # Interrupt after all key nodes
     )
     print("Workflow setup completed with in-memory persistence and autosuggestions")
